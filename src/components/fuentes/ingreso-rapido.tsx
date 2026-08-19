@@ -4,10 +4,12 @@ import { useId, useState } from "react";
 import {
   CalendarPlus,
   Eraser,
+  ImageIcon,
   Info,
   Sparkles,
   TriangleAlert,
 } from "lucide-react";
+import Tesseract from "tesseract.js";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -130,6 +132,78 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
   const [resaltados, setResaltados] = useState<Set<CampoExtraido>>(new Set());
   const [registros, setRegistros] = useState<DeteccionManual[]>([]);
   const [intentoVacio, setIntentoVacio] = useState(false);
+  const [procesandoOCR, setProcesandoOCR] = useState(false);
+
+  async function extraerDeImagen(archivo: File) {
+    if (!archivo.type.startsWith("image/")) {
+      toast.error("Por favor, pega o carga una imagen.");
+      return;
+    }
+
+    setProcesandoOCR(true);
+    try {
+      const worker = await Tesseract.createWorker("spa");
+      const resultado = await worker.recognize(archivo);
+      await worker.terminate();
+
+      const textoExtraido = resultado.data.text;
+      if (!textoExtraido.trim()) {
+        toast.warning("No se reconoció texto en la imagen.");
+        return;
+      }
+
+      const { campos, detectados } = extraerCampos(textoExtraido, sedes);
+      setFormulario({
+        titulo: campos.titulo ?? "",
+        urlFuente: campos.urlFuente ?? "",
+        sede: campos.sede ?? "",
+        fechaInicio: campos.fechaInicio ?? "",
+        fechaFin: campos.fechaFin ?? "",
+        estimadoAsistentes: campos.estimadoAsistentes
+          ? String(campos.estimadoAsistentes)
+          : "",
+        contactoNombre: campos.contactoNombre ?? "",
+        contactoCargo: campos.contactoCargo ?? "",
+        contactoTelefono: campos.contactoTelefono ?? "",
+        contactoEmail: campos.contactoEmail ?? "",
+      });
+      setResaltados(new Set(detectados));
+
+      if (detectados.length === 0) {
+        toast.warning(
+          "Se extrajo texto pero no se reconocieron campos. Habrá que completarlo a mano.",
+        );
+      } else {
+        toast.success(
+          `${pluralizar(detectados.length, "campo")} reconocido${detectados.length === 1 ? "" : "s"} de la imagen.`,
+        );
+      }
+    } catch (error) {
+      console.error("Error en OCR:", error);
+      toast.error("Error al procesar la imagen. Intenta otra vez.");
+    } finally {
+      setProcesandoOCR(false);
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.currentTarget.classList.add("border-cat-charla", "bg-cat-charla/5");
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.currentTarget.classList.remove("border-cat-charla", "bg-cat-charla/5");
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.currentTarget.classList.remove("border-cat-charla", "bg-cat-charla/5");
+
+    const archivos = e.dataTransfer.files;
+    if (archivos.length > 0) {
+      extraerDeImagen(archivos[0]);
+    }
+  }
 
   function actualizar(campo: keyof Formulario, valor: string) {
     setFormulario((estado) => ({ ...estado, [campo]: valor }));
@@ -236,6 +310,33 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className="rounded-md border-2 border-dashed border-muted-foreground/30 p-4 transition-colors"
+          >
+            <label className="flex cursor-pointer flex-col items-center gap-2">
+              <ImageIcon className="text-muted-foreground size-6" />
+              <span className="text-center text-xs font-medium">
+                {procesandoOCR
+                  ? "Extrayendo texto de la imagen…"
+                  : "Arrastra una imagen aquí o haz clic para seleccionar"}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                disabled={procesandoOCR}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    extraerDeImagen(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+              />
+            </label>
+          </div>
+
           <Textarea
             value={pegado}
             onChange={(evento) => setPegado(evento.target.value)}

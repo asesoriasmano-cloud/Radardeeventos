@@ -6,7 +6,9 @@ import {
   Eraser,
   ImageIcon,
   Info,
+  Plus,
   Sparkles,
+  Trash2,
   TriangleAlert,
 } from "lucide-react";
 import Tesseract from "tesseract.js";
@@ -27,7 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { extraerCampos, type CampoExtraido } from "@/lib/extractor";
 import { formatearFecha, formatearNumero, pluralizar } from "@/lib/eventos";
-import type { DeteccionManual, Sede } from "@/lib/types";
+import type { ContactoDeteccion, DeteccionManual, Sede } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface IngresoRapidoProps {
@@ -41,10 +43,13 @@ type Formulario = {
   fechaInicio: string;
   fechaFin: string;
   estimadoAsistentes: string;
-  contactoNombre: string;
-  contactoCargo: string;
-  contactoTelefono: string;
-  contactoEmail: string;
+  contactos: Array<{
+    nombreResponsable: string;
+    cargo: string;
+    telefonoCelular: string;
+    email: string;
+    municipalidad: string;
+  }>;
 };
 
 const VACIO: Formulario = {
@@ -54,10 +59,15 @@ const VACIO: Formulario = {
   fechaInicio: "",
   fechaFin: "",
   estimadoAsistentes: "",
-  contactoNombre: "",
-  contactoCargo: "",
-  contactoTelefono: "",
-  contactoEmail: "",
+  contactos: [
+    {
+      nombreResponsable: "",
+      cargo: "",
+      telefonoCelular: "",
+      email: "",
+      municipalidad: "",
+    },
+  ],
 };
 
 const EJEMPLO = `Expo Proveedores Mineros Calama 2026
@@ -162,10 +172,15 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
         estimadoAsistentes: campos.estimadoAsistentes
           ? String(campos.estimadoAsistentes)
           : "",
-        contactoNombre: campos.contactoNombre ?? "",
-        contactoCargo: campos.contactoCargo ?? "",
-        contactoTelefono: campos.contactoTelefono ?? "",
-        contactoEmail: campos.contactoEmail ?? "",
+        contactos: [
+          {
+            nombreResponsable: campos.contactoNombre ?? "",
+            cargo: campos.contactoCargo ?? "",
+            telefonoCelular: campos.contactoTelefono ?? "",
+            email: campos.contactoEmail ?? "",
+            municipalidad: "",
+          },
+        ],
       });
       setResaltados(new Set(detectados));
 
@@ -231,6 +246,63 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
     });
   }
 
+  function actualizarContacto(
+    indice: number,
+    campo: keyof ContactoDeteccion,
+    valor: string,
+  ) {
+    setFormulario((estado) => {
+      const nuevosContactos = [...estado.contactos];
+      nuevosContactos[indice] = { ...nuevosContactos[indice], [campo]: valor };
+      return { ...estado, contactos: nuevosContactos };
+    });
+
+    if (
+      indice === 0 &&
+      (campo === "nombreResponsable" ||
+        campo === "cargo" ||
+        campo === "telefonoCelular" ||
+        campo === "email")
+    ) {
+      const campoFormulario =
+        (campo === "nombreResponsable" && "contactoNombre") ||
+        (campo === "cargo" && "contactoCargo") ||
+        (campo === "telefonoCelular" && "contactoTelefono") ||
+        (campo === "email" && "contactoEmail");
+      if (campoFormulario) {
+        setResaltados((estado) => {
+          if (!estado.has(campoFormulario as CampoExtraido)) return estado;
+          const copia = new Set(estado);
+          copia.delete(campoFormulario as CampoExtraido);
+          return copia;
+        });
+      }
+    }
+  }
+
+  function agregarContacto() {
+    setFormulario((estado) => ({
+      ...estado,
+      contactos: [
+        ...estado.contactos,
+        {
+          nombreResponsable: "",
+          cargo: "",
+          telefonoCelular: "",
+          email: "",
+          municipalidad: "",
+        },
+      ],
+    }));
+  }
+
+  function quitarContacto(indice: number) {
+    setFormulario((estado) => ({
+      ...estado,
+      contactos: estado.contactos.filter((_, i) => i !== indice),
+    }));
+  }
+
   function procesar() {
     if (!pegado.trim()) {
       toast.warning("Pega el aviso o el enlace antes de procesar.");
@@ -247,10 +319,15 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
       estimadoAsistentes: campos.estimadoAsistentes
         ? String(campos.estimadoAsistentes)
         : "",
-      contactoNombre: campos.contactoNombre ?? "",
-      contactoCargo: campos.contactoCargo ?? "",
-      contactoTelefono: campos.contactoTelefono ?? "",
-      contactoEmail: campos.contactoEmail ?? "",
+      contactos: [
+        {
+          nombreResponsable: campos.contactoNombre ?? "",
+          cargo: campos.contactoCargo ?? "",
+          telefonoCelular: campos.contactoTelefono ?? "",
+          email: campos.contactoEmail ?? "",
+          municipalidad: "",
+        },
+      ],
     });
     setResaltados(new Set(detectados));
 
@@ -277,6 +354,16 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
 
     const aforo = Number(formulario.estimadoAsistentes.replace(/\D/g, ""));
 
+    const contactosFiltrados = formulario.contactos
+      .filter((c) => c.nombreResponsable?.trim() || c.telefonoCelular?.trim() || c.email?.trim())
+      .map((c) => ({
+        nombreResponsable: c.nombreResponsable?.trim() || undefined,
+        cargo: c.cargo?.trim() || undefined,
+        telefonoCelular: c.telefonoCelular?.trim() || undefined,
+        email: c.email?.trim() || undefined,
+        municipalidad: c.municipalidad?.trim() || undefined,
+      }));
+
     setRegistros((estado) => [
       {
         id: `det-${Date.now()}`,
@@ -287,10 +374,9 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
         fechaFin: formulario.fechaFin || undefined,
         estimadoAsistentes:
           Number.isFinite(aforo) && aforo > 0 ? aforo : undefined,
-        contactoNombre: formulario.contactoNombre.trim() || undefined,
-        contactoCargo: formulario.contactoCargo.trim() || undefined,
-        contactoTelefono: formulario.contactoTelefono.trim() || undefined,
-        contactoEmail: formulario.contactoEmail.trim() || undefined,
+        contactos: contactosFiltrados.length > 0
+          ? contactosFiltrados
+          : [{ nombreResponsable: undefined, cargo: undefined, telefonoCelular: undefined, email: undefined }],
         registradoEn: new Date().toISOString(),
       },
       ...estado,
@@ -479,41 +565,115 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
 
           <Separator />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Campo
-              id={`${idBase}-contactoNombre`}
-              valor={formulario.contactoNombre}
-              onCambio={(valor) => actualizar("contactoNombre", valor)}
-              etiqueta="Nombre del contacto"
-              marcador="Marcela Ríos"
-              resaltado={resaltados.has("contactoNombre")}
-            />
-            <Campo
-              id={`${idBase}-contactoCargo`}
-              valor={formulario.contactoCargo}
-              onCambio={(valor) => actualizar("contactoCargo", valor)}
-              etiqueta="Rol del contacto"
-              marcador="Coordinadora de eventos"
-              resaltado={resaltados.has("contactoCargo")}
-            />
-            <Campo
-              id={`${idBase}-contactoTelefono`}
-              valor={formulario.contactoTelefono}
-              onCambio={(valor) => actualizar("contactoTelefono", valor)}
-              etiqueta="Teléfono / Celular"
-              tipo="tel"
-              marcador="+56 9 8123 4567"
-              resaltado={resaltados.has("contactoTelefono")}
-            />
-            <Campo
-              id={`${idBase}-contactoEmail`}
-              valor={formulario.contactoEmail}
-              onCambio={(valor) => actualizar("contactoEmail", valor)}
-              etiqueta="Email"
-              tipo="email"
-              marcador="contacto@dominio.cl"
-              resaltado={resaltados.has("contactoEmail")}
-            />
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-medium">
+                Contactos
+                <span className="text-muted-foreground ml-1.5">
+                  ({formulario.contactos.length})
+                </span>
+              </h3>
+              <p className="text-muted-foreground text-xs">
+                Agrega contactos para cada municipalidad o zona afectada
+              </p>
+            </div>
+
+            {formulario.contactos.map((contacto, idx) => (
+              <div
+                key={idx}
+                className="rounded-md border p-3 space-y-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Contacto {idx + 1}
+                    {contacto.municipalidad &&
+                      ` · ${contacto.municipalidad}`}
+                  </span>
+                  {formulario.contactos.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => quitarContacto(idx)}
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-urgente"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Campo
+                    id={`${idBase}-contacto${idx}-nombre`}
+                    valor={contacto.nombreResponsable ?? ""}
+                    onCambio={(valor) =>
+                      actualizarContacto(idx, "nombreResponsable", valor)
+                    }
+                    etiqueta="Nombre"
+                    marcador="Marcela Ríos"
+                    resaltado={
+                      idx === 0 && resaltados.has("contactoNombre")
+                    }
+                  />
+                  <Campo
+                    id={`${idBase}-contacto${idx}-cargo`}
+                    valor={contacto.cargo ?? ""}
+                    onCambio={(valor) =>
+                      actualizarContacto(idx, "cargo", valor)
+                    }
+                    etiqueta="Rol"
+                    marcador="Coordinadora de eventos"
+                    resaltado={
+                      idx === 0 && resaltados.has("contactoCargo")
+                    }
+                  />
+                  <Campo
+                    id={`${idBase}-contacto${idx}-telefono`}
+                    valor={contacto.telefonoCelular ?? ""}
+                    onCambio={(valor) =>
+                      actualizarContacto(idx, "telefonoCelular", valor)
+                    }
+                    etiqueta="Teléfono / Celular"
+                    tipo="tel"
+                    marcador="+56 9 8123 4567"
+                    resaltado={
+                      idx === 0 && resaltados.has("contactoTelefono")
+                    }
+                  />
+                  <Campo
+                    id={`${idBase}-contacto${idx}-email`}
+                    valor={contacto.email ?? ""}
+                    onCambio={(valor) =>
+                      actualizarContacto(idx, "email", valor)
+                    }
+                    etiqueta="Email"
+                    tipo="email"
+                    marcador="contacto@dominio.cl"
+                    resaltado={
+                      idx === 0 && resaltados.has("contactoEmail")
+                    }
+                  />
+                  <Campo
+                    id={`${idBase}-contacto${idx}-municipalidad`}
+                    valor={contacto.municipalidad ?? ""}
+                    onCambio={(valor) =>
+                      actualizarContacto(idx, "municipalidad", valor)
+                    }
+                    etiqueta="Municipalidad / Zona"
+                    marcador="Valparaíso"
+                  />
+                </div>
+              </div>
+            ))}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={agregarContacto}
+              className="gap-1.5"
+            >
+              <Plus className="size-3.5" />
+              Añadir otro contacto
+            </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -575,14 +735,36 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
                     {registro.estimadoAsistentes
                       ? `${formatearNumero(registro.estimadoAsistentes)} asistentes estimados`
                       : "Aforo sin estimar"}
-                    {" · "}
-                    {registro.contactoNombre
-                      ? `${registro.contactoNombre}${registro.contactoCargo ? `, ${registro.contactoCargo}` : ""}`
-                      : "Sin responsable identificado"}
-                    {registro.contactoTelefono &&
-                      ` · ${registro.contactoTelefono}`}
-                    {registro.contactoEmail && ` · ${registro.contactoEmail}`}
                   </p>
+                  <div className="text-muted-foreground mt-2 space-y-1 text-xs">
+                    {registro.contactos.length === 0 || !registro.contactos[0]?.nombreResponsable
+                      ? <p>Sin contacto identificado</p>
+                      : registro.contactos.map((contacto, idx) => (
+                          <div key={idx}>
+                            {contacto.nombreResponsable && (
+                              <>
+                                <strong>{contacto.nombreResponsable}</strong>
+                                {contacto.cargo && ` · ${contacto.cargo}`}
+                                {contacto.municipalidad && ` (${contacto.municipalidad})`}
+                                <br />
+                              </>
+                            )}
+                            {(contacto.telefonoCelular || contacto.email) && (
+                              <>
+                                {contacto.telefonoCelular && (
+                                  <span>{contacto.telefonoCelular}</span>
+                                )}
+                                {contacto.telefonoCelular && contacto.email && (
+                                  <span> · </span>
+                                )}
+                                {contacto.email && (
+                                  <span>{contacto.email}</span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                  </div>
                 </li>
               ))}
             </ul>

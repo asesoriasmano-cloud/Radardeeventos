@@ -191,6 +191,18 @@ export interface Fuente {
 }
 
 /**
+ * Contacto clave para una detección manual. Puede haber múltiples
+ * (principal + adicionales) cuando el evento abarca varias municipalidades.
+ */
+export interface ContactoDeteccion {
+  nombreResponsable?: string;
+  cargo?: string;
+  telefonoCelular?: string;
+  email?: string;
+  municipalidad?: string;
+}
+
+/**
  * Evento cargado a mano desde /fuentes. Vive solo en la sesión del navegador:
  * no entra al conjunto de datos ni afecta a las demás vistas.
  */
@@ -202,10 +214,7 @@ export interface DeteccionManual {
   fechaInicio: ISODate;
   fechaFin?: ISODate;
   estimadoAsistentes?: number;
-  contactoNombre?: string;
-  contactoCargo?: string;
-  contactoTelefono?: string;
-  contactoEmail?: string;
+  contactos: ContactoDeteccion[];
   registradoEn: ISODate;
 }
 

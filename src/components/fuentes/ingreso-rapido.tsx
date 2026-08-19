@@ -205,6 +205,22 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
     }
   }
 
+  function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        e.preventDefault();
+        const archivo = items[i].getAsFile();
+        if (archivo) {
+          extraerDeImagen(archivo);
+        }
+        break;
+      }
+    }
+  }
+
   function actualizar(campo: keyof Formulario, valor: string) {
     setFormulario((estado) => ({ ...estado, [campo]: valor }));
     setResaltados((estado) => {
@@ -314,7 +330,9 @@ export function IngresoRapido({ sedes }: IngresoRapidoProps) {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className="rounded-md border-2 border-dashed border-muted-foreground/30 p-4 transition-colors"
+            onPaste={handlePaste}
+            tabIndex={0}
+            className="rounded-md border-2 border-dashed border-muted-foreground/30 p-4 transition-colors focus:outline-none focus:ring-2 focus:ring-cat-charla/50"
           >
             <label className="flex cursor-pointer flex-col items-center gap-2">
               <ImageIcon className="text-muted-foreground size-6" />

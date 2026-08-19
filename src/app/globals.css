@@ -1,26 +1,174 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Radar de Eventos y Congregaciones — Tema global
+ * Dark mode estricto: no existe paleta clara. El selector `.dark` se mantiene
+ * únicamente para que las variantes `dark:` de Tailwind sigan resolviendo.
+ */
+
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Niveles de urgencia por anticipación */
+  --color-urgente: var(--urgente);
+  --color-urgente-soft: var(--urgente-soft);
+  --color-proximo: var(--proximo);
+  --color-proximo-soft: var(--proximo-soft);
+  --color-planificacion: var(--planificacion);
+  --color-planificacion-soft: var(--planificacion-soft);
+
+  /* Categorías de evento */
+  --color-cat-feria: var(--cat-feria);
+  --color-cat-feria-soft: var(--cat-feria-soft);
+  --color-cat-seminario: var(--cat-seminario);
+  --color-cat-seminario-soft: var(--cat-seminario-soft);
+  --color-cat-exposicion: var(--cat-exposicion);
+  --color-cat-exposicion-soft: var(--cat-exposicion-soft);
+  --color-cat-charla: var(--cat-charla);
+  --color-cat-charla-soft: var(--cat-charla-soft);
+  --color-cat-publico: var(--cat-publico);
+  --color-cat-publico-soft: var(--cat-publico-soft);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root,
+.dark {
+  color-scheme: dark;
+
+  /* Superficies — azul-grafito profundo, tipo sala de control */
+  --background: oklch(0.165 0.014 262);
+  --foreground: oklch(0.965 0.004 258);
+  --card: oklch(0.205 0.017 262);
+  --card-foreground: oklch(0.965 0.004 258);
+  --popover: oklch(0.195 0.017 262);
+  --popover-foreground: oklch(0.965 0.004 258);
+
+  /* Acento de marca — cian radar */
+  --primary: oklch(0.735 0.142 202);
+  --primary-foreground: oklch(0.165 0.014 262);
+  --secondary: oklch(0.265 0.021 262);
+  --secondary-foreground: oklch(0.965 0.004 258);
+  --muted: oklch(0.245 0.018 262);
+  --muted-foreground: oklch(0.712 0.021 258);
+  --accent: oklch(0.285 0.031 250);
+  --accent-foreground: oklch(0.965 0.004 258);
+  --destructive: oklch(0.632 0.208 22);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.735 0.142 202);
+  --radius: 0.625rem;
+
+  /* Niveles de urgencia
+     urgente: < 7 días | próximo: 8-20 | planificación: 21-60 */
+  --urgente: oklch(0.652 0.212 19);
+  --urgente-soft: oklch(0.652 0.212 19 / 16%);
+  --proximo: oklch(0.775 0.155 64);
+  --proximo-soft: oklch(0.775 0.155 64 / 16%);
+  --planificacion: oklch(0.742 0.135 202);
+  --planificacion-soft: oklch(0.742 0.135 202 / 16%);
+
+  /* Categorías de evento */
+  --cat-feria: oklch(0.732 0.142 42);
+  --cat-feria-soft: oklch(0.732 0.142 42 / 15%);
+  --cat-seminario: oklch(0.702 0.148 268);
+  --cat-seminario-soft: oklch(0.702 0.148 268 / 15%);
+  --cat-exposicion: oklch(0.712 0.158 316);
+  --cat-exposicion-soft: oklch(0.712 0.158 316 / 15%);
+  --cat-charla: oklch(0.742 0.152 152);
+  --cat-charla-soft: oklch(0.742 0.152 152 / 15%);
+  --cat-publico: oklch(0.716 0.128 224);
+  --cat-publico-soft: oklch(0.716 0.128 224 / 15%);
+
+  /* Series de gráficos */
+  --chart-1: oklch(0.735 0.142 202);
+  --chart-2: oklch(0.702 0.148 268);
+  --chart-3: oklch(0.775 0.155 64);
+  --chart-4: oklch(0.742 0.152 152);
+  --chart-5: oklch(0.652 0.212 19);
+
+  /* Sidebar — un escalón más oscuro que el lienzo principal */
+  --sidebar: oklch(0.138 0.014 262);
+  --sidebar-foreground: oklch(0.912 0.008 258);
+  --sidebar-primary: oklch(0.735 0.142 202);
+  --sidebar-primary-foreground: oklch(0.165 0.014 262);
+  --sidebar-accent: oklch(0.245 0.022 262);
+  --sidebar-accent-foreground: oklch(0.965 0.004 258);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.735 0.142 202);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Halo de latido para el contador de alertas activas */
+  @keyframes radar-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+  .animate-radar-pulse {
+    animation: radar-pulse 2s ease-in-out infinite;
+  }
 }

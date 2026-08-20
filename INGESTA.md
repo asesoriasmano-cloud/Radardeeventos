@@ -91,13 +91,53 @@ curl "https://tudominio.vercel.app/api/ingesta/procesar?show=todos"
 }
 ```
 
-## 📊 Prioridades de diarios
+## 📊 Prioridades de diarios y municipios
 
 | Prioridad | Ejemplos | Cadencia | Uso |
 |-----------|----------|----------|-----|
 | **alta** | El Mercurio, EMOL, BioBioChile | 2h | Diario, cron cada 2h |
-| **media** | Diario Financiero, regionales grandes | 4-6h | Diario, cron cada 6h |
-| **baja** | Diarios políticos, regionales pequeños | 6-8h | Opcional, mantenimiento |
+| **media** | Sitios web municipales, diarios regionales | 4-8h | Diario, cron cada 6-8h |
+| **baja** | Diarios políticos, Instagram municipales | 6-8h | Opcional, mantenimiento |
+
+## 🏛️ Municipios como fuentes
+
+Se agregaron **64 municipios chilenos** como fuentes automáticas. Cada municipio puede tener:
+- **Sitio web** (web_scraping)
+- **Página Facebook** (web_scraping)
+- **Cuenta Instagram** (web_scraping)
+
+Total: ~190 fuentes adicionales de municipios + redes sociales
+
+### Eventos que publican municipios:
+- Fiestas locales y festivales
+- Eventos públicos, conciertos
+- Actividades comunitarias
+- Convocatorias y trámites
+
+### Ejemplos de municipios integrados:
+- Santiago, La Florida, Las Condes (Metropolitana)
+- Antofagasta, Calama (Antofagasta)
+- Concepción, Los Ángeles (Biobío)
+- Valparaíso, San Antonio (Valparaíso)
+- Temuco, Pucón (Araucanía)
+- Puerto Montt, Castro (Los Lagos)
+
+### Cómo procesar solo municipios:
+
+```bash
+# Procesar todos los municipios
+curl -X POST \
+  "https://tudominio.vercel.app/api/ingesta/procesar?show=municipios" \
+  -H "Authorization: Bearer $INGESTA_API_TOKEN"
+
+# Procesar municipios de una región específica
+curl -X POST \
+  "https://tudominio.vercel.app/api/ingesta/procesar?region=Antofagasta" \
+  -H "Authorization: Bearer $INGESTA_API_TOKEN"
+
+# Ver lista de municipios disponibles
+curl "https://tudominio.vercel.app/api/ingesta/procesar?show=municipios"
+```
 
 ## 🔄 Cron Jobs (Vercel)
 
@@ -151,17 +191,25 @@ curl -X POST \
 **Volumen diario** (una ejecución de ingesta completa):
 - Nacionales: ~15-20 eventos/día
 - Regionales: ~30-40 eventos/día
-- **Total**: ~50-70 eventos/día
+- Municipios: ~40-60 eventos/día (redes sociales + web)
+- **Total**: ~85-120 eventos/día
 
 **Costo Claude API** (Opus 5):
 - ~$0.015 / 1K tokens input
 - ~$0.06 / 1K tokens output
-- Estimado: $5-10/mes para 80 diarios
+- Estimado: $15-25/mes para ~270 fuentes
 
 **Tiempo de ingesta**:
-- Por diario: 3-8 segundos (fetch + extract)
-- 5 diarios en paralelo: ~12-18 segundos total
-- 80 diarios: ~4-6 minutos (con concurrencia)
+- Por diario/municipio: 3-8 segundos (fetch + extract)
+- 5 en paralelo: ~12-18 segundos total
+- 80+ fuentes: ~4-6 minutos (con concurrencia)
+- 270 fuentes (con municipios): ~15-20 minutos (con concurrencia)
+
+**Fuentes activas**:
+- Diarios nacionales: 8
+- Diarios regionales: 18+
+- Municipios (web + redes): 64 × 3 = ~190 fuentes
+- **Total**: ~270 fuentes de ingesta
 
 ## ⚠️ Limitaciones actuales
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { PanelAlertas } from "@/components/alertas/panel-alertas";
-import { obtenerEventosEnriquecidos } from "@/data/eventos";
+import { obtenerEventosDeBD } from "@/lib/eventos-db";
 import { NAVEGACION } from "@/lib/navegacion";
 
 const vista = NAVEGACION[0];
@@ -11,8 +11,17 @@ export const metadata: Metadata = {
   description: vista.descripcion,
 };
 
-export default function AlertasPage() {
-  const eventos = obtenerEventosEnriquecidos();
+export const dynamic = "force-dynamic";
+
+export default async function AlertasPage() {
+  let eventos = [];
+
+  try {
+    eventos = await obtenerEventosDeBD();
+  } catch (error) {
+    console.error("Error cargando eventos de BD:", error);
+    eventos = [];
+  }
 
   return <PanelAlertas eventos={eventos} />;
 }

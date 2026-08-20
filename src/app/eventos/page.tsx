@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ExploradorEventos } from "@/components/eventos/explorador-eventos";
-import { obtenerEventosEnriquecidos } from "@/data/eventos";
+import { obtenerEventosDeBD } from "@/lib/eventos-db";
 import { NAVEGACION } from "@/lib/navegacion";
 
 const vista = NAVEGACION[1];
@@ -11,19 +11,23 @@ export const metadata: Metadata = {
   description: vista.descripcion,
 };
 
-// La urgencia se calcula contra la fecha de hoy: renderizar por petición evita
-// servir un HTML prerenderizado con días restantes obsoletos.
 export const dynamic = "force-dynamic";
 
 export default async function EventosPage({
   searchParams,
 }: {
-  // `?q=` permite llegar aquí con el buscador precargado, por ejemplo desde
-  // una sede en /sedes para ver de un clic todos sus eventos.
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  const eventos = obtenerEventosEnriquecidos();
+  let eventos = [];
+
+  try {
+    eventos = await obtenerEventosDeBD();
+  } catch (error) {
+    console.error("Error cargando eventos de BD:", error);
+    // Fallback a datos vacíos si falla Supabase
+    eventos = [];
+  }
 
   return <ExploradorEventos eventos={eventos} busquedaInicial={q ?? ""} />;
 }

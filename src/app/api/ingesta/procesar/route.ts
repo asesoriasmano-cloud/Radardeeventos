@@ -20,6 +20,7 @@ import {
   estadisticasFuentes,
 } from "@/lib/ingesta/config";
 import { procesarMultiplesDiarios } from "@/lib/ingesta/pipeline";
+import { guardarEventos } from "@/lib/ingesta/storage";
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,17 +59,27 @@ export async function POST(request: NextRequest) {
     // Procesar diarios
     const { resultados, eventosValidos, resumen } = await procesarMultiplesDiarios(
       diariosAProcesar,
-      "fue-manual", // Fuente: ingesta automática
-      3 // Max 3 diarios en paralelo
+      "fue-manual",
+      3
     );
 
-    // En esta fase MVP, solo devolvemos resultados
-    // En fase 2, aquí guardaríamos en BD (Supabase)
+    // Guardar eventos en Supabase
+    let resultadoGuardado = { exitosos: 0, fallidos: 0, errores: [] };
+    if (eventosValidos.length > 0) {
+      resultadoGuardado = await guardarEventos(eventosValidos);
+      console.log(
+        `[Ingesta] Guardado: ${resultadoGuardado.exitosos} exitosos, ${resultadoGuardado.fallidos} fallidos`
+      );
+    }
 
     return NextResponse.json(
       {
         success: true,
-        resumen,
+        resumen: {
+          ...resumen,
+          eventosGuardados: resultadoGuardado.exitosos,
+          eventosErrorGuardado: resultadoGuardado.fallidos,
+        },
         resultados: resultados.map((r) => ({
           diarioId: r.diarioId,
           diarioNombre: r.diarioNombre,
@@ -80,6 +91,7 @@ export async function POST(request: NextRequest) {
         })),
         eventosExtraidos: eventosValidos.length,
         ejemploEvento: eventosValidos[0] || null,
+        guardado: resultadoGuardado,
       },
       { status: 200 }
     );

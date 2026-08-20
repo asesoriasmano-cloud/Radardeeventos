@@ -64,9 +64,14 @@ export async function POST(request: NextRequest) {
     );
 
     // Guardar eventos en Supabase
-    let resultadoGuardado = { exitosos: 0, fallidos: 0, errores: [] };
+    const resultadoGuardado: {
+      exitosos: number;
+      fallidos: number;
+      errores: Array<{ eventoId: string; error: string }>;
+    } = { exitosos: 0, fallidos: 0, errores: [] };
+
     if (eventosValidos.length > 0) {
-      resultadoGuardado = await guardarEventos(eventosValidos);
+      Object.assign(resultadoGuardado, await guardarEventos(eventosValidos));
       console.log(
         `[Ingesta] Guardado: ${resultadoGuardado.exitosos} exitosos, ${resultadoGuardado.fallidos} fallidos`
       );
@@ -137,7 +142,22 @@ export async function GET(request: NextRequest) {
     titulo = "Todas las Fuentes";
   }
 
-  const respuesta: any = {
+  interface RespuestaFuentes {
+    titulo: string;
+    total: number;
+    diarios: Array<{
+      id: string;
+      nombre: string;
+      region?: string;
+      cadenciaHoras: number;
+      prioridad: string;
+      categoria: string;
+      mecanismo: string;
+    }>;
+    estadisticas?: Record<string, number>;
+  }
+
+  const respuesta: RespuestaFuentes = {
     titulo,
     total: diarios.length,
     diarios: diarios.map((d) => ({

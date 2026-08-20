@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import type { DiarioConfig } from "@/lib/ingesta/config";
 import {
   DIARIOS_NACIONALES,
   DIARIOS_REGIONALES,
@@ -21,6 +22,13 @@ import {
 } from "@/lib/ingesta/config";
 import { procesarMultiplesDiarios } from "@/lib/ingesta/pipeline";
 import { guardarEventos } from "@/lib/ingesta/storage";
+
+interface RespuestaFuentes {
+  titulo: string;
+  total: number;
+  diarios: DiarioConfig[];
+  estadisticas?: Record<string, number>;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -125,7 +133,7 @@ export async function GET(request: NextRequest) {
   const mostrar = params.get("show") || "nacionales";
   const stats = params.get("stats") === "true";
 
-  let diarios = [];
+  let diarios: DiarioConfig[] = [];
   let titulo = "";
 
   if (mostrar === "nacionales") {
@@ -140,21 +148,6 @@ export async function GET(request: NextRequest) {
   } else if (mostrar === "todos") {
     diarios = [...DIARIOS_NACIONALES, ...DIARIOS_REGIONALES, ...MUNICIPIOS_FUENTES];
     titulo = "Todas las Fuentes";
-  }
-
-  interface RespuestaFuentes {
-    titulo: string;
-    total: number;
-    diarios: Array<{
-      id: string;
-      nombre: string;
-      region?: string;
-      cadenciaHoras: number;
-      prioridad: string;
-      categoria: string;
-      mecanismo: string;
-    }>;
-    estadisticas?: Record<string, number>;
   }
 
   const respuesta: RespuestaFuentes = {

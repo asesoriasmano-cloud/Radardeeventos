@@ -11,7 +11,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { DIARIOS_NACIONALES, DIARIOS_REGIONALES, obtenerDiariossPorPrioridad, obtenerDiariossPorRegion } from "@/lib/ingesta/config";
+import {
+  DIARIOS_NACIONALES,
+  DIARIOS_REGIONALES,
+  MUNICIPIOS_FUENTES,
+  obtenerDiariossPorPrioridad,
+  obtenerDiariossPorRegion,
+  estadisticasFuentes,
+} from "@/lib/ingesta/config";
 import { procesarMultiplesDiarios } from "@/lib/ingesta/pipeline";
 
 export async function POST(request: NextRequest) {
@@ -90,18 +97,36 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/ingesta/procesar
- * Retorna información sobre diarios disponibles (para debugging).
+ * Retorna información sobre fuentes disponibles (debug + estadísticas).
+ *
+ * Query params:
+ *   - show: "nacionales" | "regionales" | "municipios" | "todos" (default: "nacionales")
+ *   - stats: "true" para ver estadísticas generales
  */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const mostrar = params.get("show") || "nacionales"; // "nacionales", "regionales", "todos"
+  const mostrar = params.get("show") || "nacionales";
+  const stats = params.get("stats") === "true";
 
-  let diarios = mostrar === "regionales" ? DIARIOS_REGIONALES : DIARIOS_NACIONALES;
-  if (mostrar === "todos") {
-    diarios = [...DIARIOS_NACIONALES, ...DIARIOS_REGIONALES];
+  let diarios = [];
+  let titulo = "";
+
+  if (mostrar === "nacionales") {
+    diarios = DIARIOS_NACIONALES;
+    titulo = "Diarios Nacionales";
+  } else if (mostrar === "regionales") {
+    diarios = DIARIOS_REGIONALES;
+    titulo = "Diarios Regionales";
+  } else if (mostrar === "municipios") {
+    diarios = MUNICIPIOS_FUENTES;
+    titulo = "Fuentes de Municipios (Web + Redes Sociales)";
+  } else if (mostrar === "todos") {
+    diarios = [...DIARIOS_NACIONALES, ...DIARIOS_REGIONALES, ...MUNICIPIOS_FUENTES];
+    titulo = "Todas las Fuentes";
   }
 
-  return NextResponse.json({
+  const respuesta: any = {
+    titulo,
     total: diarios.length,
     diarios: diarios.map((d) => ({
       id: d.id,
@@ -110,6 +135,13 @@ export async function GET(request: NextRequest) {
       cadenciaHoras: d.cadenciaHoras,
       prioridad: d.prioridad,
       categoria: d.categoria,
+      mecanismo: d.mecanismo,
     })),
-  });
+  };
+
+  if (stats) {
+    respuesta.estadisticas = estadisticasFuentes();
+  }
+
+  return NextResponse.json(respuesta);
 }

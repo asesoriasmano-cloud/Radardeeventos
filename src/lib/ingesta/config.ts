@@ -294,15 +294,105 @@ export const DIARIOS_REGIONALES: DiarioConfig[] = [
 ];
 
 // ============================================================================
+// MUNICIPIOS (Redes sociales + sitios web)
+// ============================================================================
+
+import { MUNICIPIOS } from "@/data/municipios";
+
+/**
+ * Convierte un municipio en fuentes de DiarioConfig.
+ * Cada municipio puede tener hasta 3 fuentes:
+ * - Sitio web
+ * - Facebook
+ * - Instagram
+ */
+export function municipiosAFuentes(): DiarioConfig[] {
+  const fuentes: DiarioConfig[] = [];
+
+  for (const muni of MUNICIPIOS) {
+    // Sitio web del municipio
+    if (muni.sitioWeb) {
+      fuentes.push({
+        id: `muni-web-${muni.comuna.toLowerCase().replace(/ /g, "-")}`,
+        nombre: `${muni.comuna} - Sitio Web`,
+        region: muni.region,
+        mecanismo: "web_scraping",
+        url: muni.sitioWeb,
+        cadenciaHoras: 8,
+        prioridad: "media",
+        categoria: "general",
+        notas: `Municipalidad de ${muni.comuna}. Publica eventos públicos, festivales, actividades.`,
+        eventosEsperados: ["evento_publico", "charla_capacitacion"],
+      });
+    }
+
+    // Facebook del municipio
+    if (muni.facebook) {
+      fuentes.push({
+        id: `muni-fb-${muni.comuna.toLowerCase().replace(/ /g, "-")}`,
+        nombre: `${muni.comuna} - Facebook`,
+        region: muni.region,
+        mecanismo: "web_scraping",
+        url: muni.facebook,
+        cadenciaHoras: 6,
+        prioridad: "media",
+        categoria: "general",
+        notas: `Página de Facebook de ${muni.comuna}. Eventos, avisos municipales.`,
+        eventosEsperados: ["evento_publico"],
+      });
+    }
+
+    // Instagram del municipio
+    if (muni.instagram) {
+      fuentes.push({
+        id: `muni-ig-${muni.comuna.toLowerCase().replace(/ /g, "-")}`,
+        nombre: `${muni.comuna} - Instagram`,
+        region: muni.region,
+        mecanismo: "web_scraping",
+        url: muni.instagram,
+        cadenciaHoras: 6,
+        prioridad: "baja",
+        categoria: "general",
+        notas: `Instagram de ${muni.comuna}. Anuncios de eventos, actividades locales.`,
+        eventosEsperados: ["evento_publico"],
+      });
+    }
+  }
+
+  return fuentes;
+}
+
+// ============================================================================
 // EXPORTAR TODO
 // ============================================================================
 
-export const TODAS_LAS_FUENTES = [...DIARIOS_NACIONALES, ...DIARIOS_REGIONALES];
+export const MUNICIPIOS_FUENTES = municipiosAFuentes();
+export const TODAS_LAS_FUENTES = [
+  ...DIARIOS_NACIONALES,
+  ...DIARIOS_REGIONALES,
+  ...MUNICIPIOS_FUENTES,
+];
 
 // Filtrar por prioridad
 export const obtenerDiariossPorPrioridad = (prioridad: PrioridadDiario) =>
   TODAS_LAS_FUENTES.filter((d) => d.prioridad === prioridad);
 
-// Filtrar por región (solo regionales)
+// Filtrar por región (solo regionales + municipios)
 export const obtenerDiariossPorRegion = (region: string) =>
-  DIARIOS_REGIONALES.filter((d) => d.region === region);
+  TODAS_LAS_FUENTES.filter((d) => d.region === region);
+
+// Estadísticas
+export function estadisticasFuentes() {
+  return {
+    total: TODAS_LAS_FUENTES.length,
+    diarios: {
+      nacionales: DIARIOS_NACIONALES.length,
+      regionales: DIARIOS_REGIONALES.length,
+    },
+    municipios: {
+      total: MUNICIPIOS.length,
+      fuentes: MUNICIPIOS_FUENTES.length,
+      promedio_por_municipio: (MUNICIPIOS_FUENTES.length / MUNICIPIOS.length).toFixed(1),
+    },
+  };
+}

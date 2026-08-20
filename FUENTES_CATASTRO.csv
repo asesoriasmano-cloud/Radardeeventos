@@ -1,0 +1,29 @@
+id,nombre,tipo,region,mecanismo,url,cadencia_horas,prioridad,categoria,notas
+diario-mercurio,El Mercurio,diario_nacional,,web_scraping,https://www.elmercurio.com,2,alta,general,Diario más antiguo. Múltiples secciones regionales.
+diario-tercera,La Tercera,diario_nacional,,web_scraping,https://www.latercera.com,2,alta,general,Principal competidor de El Mercurio
+emol,EMOL,diario_nacional,,web_scraping,https://www.emol.com,2,alta,general,Portal digital de El Mercurio
+biobiochile,BioBioChile,diario_nacional,,web_scraping,https://www.biobiochile.cl,2,alta,general,Red de radios con portal digital popular
+diario-lun,Las Últimas Noticias (LUN),diario_nacional,,web_scraping,https://www.lun.com,3,media,general,Enfocado en espectáculos
+diario-financiero,Diario Financiero,diario_nacional,,web_scraping,https://www.df.cl,4,media,financiero,Eventos corporativos y de negocios
+diario-estrategia,Estrategia,diario_nacional,,web_scraping,https://www.estrategia.cl,4,media,financiero,Diario especializado en negocios
+el-mostrador,El Mostrador,diario_nacional,,web_scraping,https://www.elmostrador.cl,6,baja,politica,Primer diario 100% digital
+diario-mercurio-antofagasta,El Mercurio de Antofagasta,diario_regional,Antofagasta,web_scraping,https://www.mercurioantofagasta.cl,4,alta,general,Cobertura regional norte
+diario-sur-concepcion,El Sur (Concepción),diario_regional,Biobío,web_scraping,https://www.elsur.cl,4,alta,general,Cobertura región Biobío
+muni-web-colina,Colina - Sitio Web,municipio,Metropolitana,web_scraping,https://www.colina.cl/,8,media,general,Municipalidad de Colina
+muni-fb-colina,Colina - Facebook,municipio,Metropolitana,web_scraping,https://www.facebook.com/MunicipalidadColina,6,media,general,Página de Facebook
+muni-ig-colina,Colina - Instagram,municipio,Metropolitana,web_scraping,https://www.instagram.com/municolina/,6,baja,general,Instagram de Colina
+muni-web-santiago,Santiago - Sitio Web,municipio,Metropolitana,web_scraping,http://www.municipalidaddesantiago.cl/,8,media,general,Municipalidad de Santiago
+muni-fb-santiago,Santiago - Facebook,municipio,Metropolitana,web_scraping,https://www.facebook.com/munistgo,6,media,general,Página de Facebook
+muni-ig-santiago,Santiago - Instagram,municipio,Metropolitana,web_scraping,https://www.instagram.com/munistgo/,6,baja,general,Instagram de Santiago
+muni-web-antofagasta,Antofagasta - Sitio Web,municipio,Antofagasta,web_scraping,https://www.municipalidadantofagasta.cl/,8,media,general,Municipalidad de Antofagasta
+muni-fb-antofagasta,Antofagasta - Facebook,municipio,Antofagasta,web_scraping,https://www.facebook.com/Municipalidad.Antofagasta,6,media,general,Página de Facebook
+muni-ig-antofagasta,Antofagasta - Instagram,municipio,Antofagasta,web_scraping,https://www.instagram.com/antofagastamuni/,6,baja,general,Instagram de Antofagasta
+muni-web-concepcion,Concepción - Sitio Web,municipio,Biobío,web_scraping,https://concepcion.cl/,8,media,general,Municipalidad de Concepción
+muni-fb-concepcion,Concepción - Facebook,municipio,Biobío,web_scraping,https://www.facebook.com/MuniConce,6,media,general,Página de Facebook
+muni-ig-concepcion,Concepción - Instagram,municipio,Biobío,web_scraping,https://www.instagram.com/muni_conce/,6,baja,general,Instagram de Concepción
+muni-web-valparaiso,Valparaíso - Sitio Web,municipio,Valparaíso,web_scraping,https://municipalidaddevalparaiso.cl/,8,media,general,Municipalidad de Valparaíso
+muni-fb-valparaiso,Valparaíso - Facebook,municipio,Valparaíso,web_scraping,https://www.facebook.com/Municipiovalpo,6,media,general,Página de Facebook
+muni-ig-valparaiso,Valparaíso - Instagram,municipio,Valparaíso,web_scraping,https://www.instagram.com/municipiovalpo/,6,baja,general,Instagram de Valparaíso
+NOTA: Este catastro incluye diarios nacionales (8), diarios regionales (18+), y municipios (64 con ~190 fuentes de redes sociales + sitios web)
+NOTA: Cadencia en horas = cada cuántas horas revisar. Prioridad determina frecuencia de ingesta.
+NOTA: El mecanismo es web_scraping para todos actualmente. Fase 2 agregará RSS y APIs.

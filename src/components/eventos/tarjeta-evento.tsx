@@ -8,6 +8,7 @@ import {
   BadgeEstado,
   BadgeUrgencia,
 } from "@/components/eventos/badges";
+import { BadgeNuevo } from "@/components/eventos/badge-nuevo";
 import { PanelContacto } from "@/components/eventos/panel-contacto";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,6 +85,7 @@ export function TarjetaEvento({
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <BadgeNuevo evento={evento} />
           <BadgeUrgencia
             nivel={evento.alerta.nivelUrgencia}
             diasRestantes={evento.alerta.diasRestantes}

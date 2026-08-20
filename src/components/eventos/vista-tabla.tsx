@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { BadgeCategoria, BadgeEstado } from "@/components/eventos/badges";
+import { BadgeNuevo } from "@/components/eventos/badge-nuevo";
 import { PanelContacto } from "@/components/eventos/panel-contacto";
 import { Button } from "@/components/ui/button";
 import {
@@ -223,6 +224,7 @@ export function VistaTabla({
                 <TableCell className="py-2.5">
                   <p className="line-clamp-2 font-medium">{evento.titulo}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <BadgeNuevo evento={evento} />
                     <BadgeCategoria categoria={evento.categoria} corta />
                     <BadgeEstado estado={evento.estado} />
                   </div>

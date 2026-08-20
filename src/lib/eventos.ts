@@ -73,6 +73,14 @@ export function calcularAlerta(evento: Evento, hoy = new Date()): AlertaInfo {
   return { diasRestantes, nivelUrgencia: nivelPorDias(diasRestantes) };
 }
 
+/** Verifica si el evento fue detectado en las últimas 24 horas. */
+export function esEventoReciente(evento: Evento, ahora = new Date()): boolean {
+  if (!evento.detectadoEn) return false;
+  const detectadoEn = new Date(evento.detectadoEn);
+  const hace24Horas = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+  return detectadoEn >= hace24Horas;
+}
+
 /** Texto del contador regresivo. */
 export function textoCuentaRegresiva(dias: number): string {
   if (dias < 0) return `Hace ${Math.abs(dias)} d`;

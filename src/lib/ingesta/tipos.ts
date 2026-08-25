@@ -3,6 +3,25 @@
  * Se mapean al modelo principal de Evento en src/lib/types.ts
  */
 
+import type { ContactoClave, Evento, Organizador, Sede } from "@/lib/types";
+
+/**
+ * Unidad que viaja del pipeline a la persistencia.
+ *
+ * Las cuatro entidades van **separadas y no embebidas** porque `Evento` solo
+ * guarda `sedeId` / `organizadorId`: los ids que trae el evento recién mapeado
+ * son provisionales y la BD puede resolverlos contra filas ya existentes. Es
+ * `guardarEvento()` quien reescribe las referencias con los ids definitivos.
+ */
+export interface EventoParaGuardar {
+  evento: Evento;
+  sede: Sede | null;
+  organizador: Organizador | null;
+  contacto: ContactoClave | null;
+  diarioId: string;
+  diarioNombre: string;
+}
+
 export interface ContactoExtraido {
   nombreResponsable?: string;
   cargo?: string;

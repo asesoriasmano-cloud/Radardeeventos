@@ -7,8 +7,7 @@ import type { DiarioConfig } from "./config";
 import { obtenerContenidoDiario, validarContenido } from "./fetcher";
 import { extraerEventosDelTexto } from "./event-extractor";
 import { mapearEventoExtraido, validarEventoMapeado } from "./mapper";
-import type { ResultadoExtraccion, RegistroIngesta } from "./tipos";
-import type { Evento, Sede, Organizador, ContactoClave } from "@/lib/types";
+import type { EventoParaGuardar, ResultadoExtraccion } from "./tipos";
 
 export interface ResultadoPipeline {
   diarioId: string;
@@ -18,15 +17,6 @@ export interface ResultadoPipeline {
   eventosValidos: number;
   errores: string[];
   tiempoMs: number;
-}
-
-interface EventoValido {
-  evento: Evento;
-  sede: Sede | null;
-  organizador: Organizador | null;
-  contacto: ContactoClave | null;
-  diarioId: string;
-  diarioNombre: string;
 }
 
 /**
@@ -39,11 +29,11 @@ export async function procesarDiario(
 ): Promise<{
   resultado: ResultadoPipeline;
   extraccion: ResultadoExtraccion | null;
-  eventosValidos: EventoValido[];
+  eventosValidos: EventoParaGuardar[];
 }> {
   const inicio = Date.now();
   const errores: string[] = [];
-  const eventosValidos: EventoValido[] = [];
+  const eventosValidos: EventoParaGuardar[] = [];
 
   try {
     // 1. FETCH
@@ -139,7 +129,7 @@ export async function procesarMultiplesDiarios(
   concurrenciaMax: number = 3
 ): Promise<{
   resultados: ResultadoPipeline[];
-  eventosValidos: EventoValido[];
+  eventosValidos: EventoParaGuardar[];
   resumen: {
     diariosProcessados: number;
     diariosExitosos: number;
@@ -149,7 +139,7 @@ export async function procesarMultiplesDiarios(
 }> {
   const inicio = Date.now();
   const resultados: ResultadoPipeline[] = [];
-  const eventosValidos: EventoValido[] = [];
+  const eventosValidos: EventoParaGuardar[] = [];
 
   // Procesar con límite de concurrencia
   for (let i = 0; i < diarios.length; i += concurrenciaMax) {

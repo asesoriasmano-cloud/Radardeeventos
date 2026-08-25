@@ -3,7 +3,14 @@
  * Maneja la creación/reutilización de Sede, Organizador, ContactoClave.
  */
 
-import type { Evento, Sede, Organizador, ContactoClave, CategoriaEvento } from "@/lib/types";
+import type {
+  Evento,
+  Sede,
+  Organizador,
+  ContactoClave,
+  CategoriaEvento,
+  TipoSede,
+} from "@/lib/types";
 import type { EventoExtraido } from "./tipos";
 
 /**
@@ -130,7 +137,7 @@ function mapearCategoria(categoria: string): CategoriaEvento {
  * Infiere el tipo de sede basándose en su nombre.
  * Heurísticas simples.
  */
-function inferirTipoSede(nombreSede: string): string {
+function inferirTipoSede(nombreSede: string): TipoSede {
   const nombre = nombreSede.toLowerCase();
 
   if (nombre.includes("hotel")) return "hotel";

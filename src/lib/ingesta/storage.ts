@@ -4,16 +4,13 @@
  */
 
 import { supabase } from "@/lib/supabase/client";
-import type {
-  ContactoClave,
-  Evento,
-  Organizador,
-  Sede,
-} from "@/lib/types";
+import type { ContactoClave, Organizador, Sede } from "@/lib/types";
+import type { EventoParaGuardar } from "./tipos";
 
 /**
  * Obtiene o crea una sede en la BD.
- * Retorna el ID de la sede (existente o nuevo).
+ * Deduplica por nombre + ciudad, que es lo que identifica un recinto en la
+ * práctica: dos hoteles distintos no comparten nombre dentro de una ciudad.
  */
 export async function obtenerOCrearSede(sede: Sede): Promise<string> {
   const { data: existente } = await supabase
@@ -21,11 +18,9 @@ export async function obtenerOCrearSede(sede: Sede): Promise<string> {
     .select("id")
     .eq("nombre", sede.nombre)
     .eq("ciudad", sede.ciudad)
-    .single();
+    .maybeSingle();
 
-  if (existente) {
-    return existente.id;
-  }
+  if (existente) return existente.id;
 
   const { data: nuevo, error } = await supabase
     .from("sedes")
@@ -53,9 +48,7 @@ export async function obtenerOCrearSede(sede: Sede): Promise<string> {
   return nuevo.id;
 }
 
-/**
- * Obtiene o crea un organizador en la BD.
- */
+/** Obtiene o crea un organizador en la BD. Deduplica por nombre. */
 export async function obtenerOCrearOrganizador(
   organizador: Organizador
 ): Promise<string> {
@@ -63,11 +56,9 @@ export async function obtenerOCrearOrganizador(
     .from("organizadores")
     .select("id")
     .eq("nombre", organizador.nombre)
-    .single();
+    .maybeSingle();
 
-  if (existente) {
-    return existente.id;
-  }
+  if (existente) return existente.id;
 
   const { data: nuevo, error } = await supabase
     .from("organizadores")
@@ -84,28 +75,32 @@ export async function obtenerOCrearOrganizador(
     .select("id")
     .single();
 
-  if (error)
-    throw new Error(`Error guardando organizador: ${error.message}`);
+  if (error) throw new Error(`Error guardando organizador: ${error.message}`);
   return nuevo.id;
 }
 
 /**
  * Obtiene o crea un contacto en la BD.
+ *
+ * Deduplica por correo cuando existe y por nombre cuando no: la ingesta muchas
+ * veces identifica al responsable sin su dato directo, y buscar por `email = ""`
+ * no encontraría nunca a esos contactos, duplicándolos en cada corrida.
  */
 export async function obtenerOCrearContacto(
   contacto: ContactoClave,
   organizadorId: string
 ): Promise<string> {
-  const { data: existente } = await supabase
+  const consulta = supabase
     .from("contactos_clave")
     .select("id")
-    .eq("organizador_id", organizadorId)
-    .eq("email", contacto.email || "")
-    .single();
+    .eq("organizador_id", organizadorId);
 
-  if (existente) {
-    return existente.id;
-  }
+  const { data: existente } = await (contacto.email
+    ? consulta.eq("email", contacto.email)
+    : consulta.eq("nombre_responsable", contacto.nombreResponsable)
+  ).maybeSingle();
+
+  if (existente) return existente.id;
 
   const { data: nuevo, error } = await supabase
     .from("contactos_clave")
@@ -130,36 +125,63 @@ export async function obtenerOCrearContacto(
 }
 
 /**
- * Guarda un evento y vincula sus contactos.
+ * Verifica que la fuente exista antes de referenciarla.
+ *
+ * `eventos.fuente_id` es una FK contra `fuentes`, tabla que hoy está vacía: si
+ * se insertara el id sin comprobarlo, cada evento fallaría por violación de
+ * clave foránea. Hasta que se siembre `fuentes` desde `config.ts`, la
+ * atribución queda en `null` en vez de tumbar la ingesta completa.
  */
-export async function guardarEvento(evento: Evento): Promise<string> {
-  // 1. Obtener/crear sede
-  const sedeId = await obtenerOCrearSede(evento.sede);
+async function resolverFuenteId(fuenteId?: string): Promise<string | null> {
+  if (!fuenteId) return null;
 
-  // 2. Obtener/crear organizador
-  const organizadorId = await obtenerOCrearOrganizador(evento.organizador);
+  const { data } = await supabase
+    .from("fuentes")
+    .select("id")
+    .eq("id", fuenteId)
+    .maybeSingle();
 
-  // 3. Obtener/crear contactos
-  const contactoIds: string[] = [];
-  for (const contacto of evento.contactos) {
-    const cId = await obtenerOCrearContacto(contacto, organizadorId);
-    contactoIds.push(cId);
+  return data ? data.id : null;
+}
+
+/**
+ * Guarda un evento con sus relaciones y devuelve su id definitivo.
+ *
+ * Las referencias del evento se reescriben con los ids que resolvió la BD: los
+ * que traía el mapper son provisionales y apuntarían a filas que no existen
+ * cuando la sede o el organizador ya estaban cargados.
+ */
+export async function guardarEvento(item: EventoParaGuardar): Promise<string> {
+  const { evento, sede, organizador, contacto } = item;
+
+  if (!sede) {
+    throw new Error(`"${evento.titulo}": sin sede, no se puede ubicar`);
+  }
+  if (!organizador) {
+    // `eventos.organizador_id` es NOT NULL, y un evento sin quién lo convoca no
+    // sirve para prospectar: se descarta con un motivo legible.
+    throw new Error(`"${evento.titulo}": sin organizador identificado`);
   }
 
-  // 4. Verificar si el evento ya existe (por título + fecha + ciudad)
+  const sedeId = await obtenerOCrearSede(sede);
+  const organizadorId = await obtenerOCrearOrganizador(organizador);
+
+  const contactoIds: string[] = [];
+  if (contacto) {
+    contactoIds.push(await obtenerOCrearContacto(contacto, organizadorId));
+  }
+
+  // Deduplicación del evento: mismo título, misma fecha y mismo recinto.
   const { data: existente } = await supabase
     .from("eventos")
     .select("id")
     .eq("titulo", evento.titulo)
     .eq("fecha_inicio", evento.fechaInicio)
     .eq("sede_id", sedeId)
-    .single();
+    .maybeSingle();
 
-  if (existente) {
-    return existente.id;
-  }
+  if (existente) return existente.id;
 
-  // 5. Insertar evento
   const { data: nuevoEvento, error: eventoError } = await supabase
     .from("eventos")
     .insert([
@@ -174,7 +196,7 @@ export async function guardarEvento(evento: Evento): Promise<string> {
         estimado_asistentes: evento.estimadoAsistentes,
         sede_id: sedeId,
         organizador_id: organizadorId,
-        fuente_id: evento.fuenteId,
+        fuente_id: await resolverFuenteId(evento.fuenteId),
         es_pago: evento.esPago,
         url_oficial: evento.urlOficial,
         etiquetas: evento.etiquetas?.join(","),
@@ -187,7 +209,6 @@ export async function guardarEvento(evento: Evento): Promise<string> {
   if (eventoError)
     throw new Error(`Error guardando evento: ${eventoError.message}`);
 
-  // 6. Vincular contactos al evento
   if (contactoIds.length > 0) {
     const { error: vinculoError } = await supabase
       .from("evento_contactos")
@@ -207,8 +228,9 @@ export async function guardarEvento(evento: Evento): Promise<string> {
 
 /**
  * Guarda múltiples eventos en lote.
+ * Un evento que falla no detiene al resto: se acumula su motivo y se sigue.
  */
-export async function guardarEventos(eventos: Evento[]): Promise<{
+export async function guardarEventos(items: EventoParaGuardar[]): Promise<{
   exitosos: number;
   fallidos: number;
   errores: Array<{ eventoId: string; error: string }>;
@@ -216,22 +238,17 @@ export async function guardarEventos(eventos: Evento[]): Promise<{
   const errores: Array<{ eventoId: string; error: string }> = [];
   let exitosos = 0;
 
-  for (const evento of eventos) {
+  for (const item of items) {
     try {
-      await guardarEvento(evento);
+      await guardarEvento(item);
       exitosos++;
     } catch (error) {
-      fallidos++;
       errores.push({
-        eventoId: evento.id,
+        eventoId: item.evento.id,
         error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
-  return {
-    exitosos,
-    fallidos: errores.length,
-    errores,
-  };
+  return { exitosos, fallidos: errores.length, errores };
 }

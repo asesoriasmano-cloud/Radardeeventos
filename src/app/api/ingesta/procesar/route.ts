@@ -23,11 +23,20 @@ import {
 import { procesarMultiplesDiarios } from "@/lib/ingesta/pipeline";
 import { guardarEventos } from "@/lib/ingesta/storage";
 
+/**
+ * Vista pública de un diario: omite `url` y `selector` a propósito. El endpoint
+ * es de depuración y no tiene por qué publicar cómo se raspa cada fuente.
+ */
+type DiarioResumen = Pick<
+  DiarioConfig,
+  "id" | "nombre" | "region" | "cadenciaHoras" | "prioridad" | "categoria" | "mecanismo"
+>;
+
 interface RespuestaFuentes {
   titulo: string;
   total: number;
-  diarios: DiarioConfig[];
-  estadisticas?: Record<string, number>;
+  diarios: DiarioResumen[];
+  estadisticas?: ReturnType<typeof estadisticasFuentes>;
 }
 
 export async function POST(request: NextRequest) {

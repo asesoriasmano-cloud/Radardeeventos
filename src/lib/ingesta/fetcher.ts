@@ -5,6 +5,9 @@
 
 import type { DiarioConfig } from "./config";
 
+/** Corte de espera por diario. Con 3 en paralelo, acota la corrida completa. */
+const TIMEOUT_MS = 10_000;
+
 /**
  * Obtiene el contenido texto de un diario.
  * Usa estrategias diferentes según el selector disponible.
@@ -18,7 +21,8 @@ export async function obtenerContenidoDiario(
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
-      timeout: 10000,
+      // `fetch` no admite `timeout`; el corte va por señal de aborto.
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
     if (!respuesta.ok) {
@@ -102,7 +106,7 @@ function extraerTextoGeneral(html: string): string {
 export async function obtenerContenidoRSS(feedUrl: string): Promise<string> {
   try {
     const respuesta = await fetch(feedUrl, {
-      timeout: 10000,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
     if (!respuesta.ok) {

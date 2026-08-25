@@ -1,16 +1,61 @@
 /**
  * Lectura de eventos desde Supabase.
- * Resuelve todas las relaciones (sede, organizador, contactos).
+ *
+ * Devuelve `EventoEnriquecido`, que es el tipo que consumen las tarjetas y las
+ * tablas: sede, organizador y contactos ya resueltos, más la alerta calculada.
+ * `alerta` es derivada y nunca se persiste —se calcula aquí contra la fecha
+ * actual—, igual que en `obtenerEventosEnriquecidos()` de `src/data/eventos.ts`.
  */
 
 import { supabase } from "@/lib/supabase/client";
-import type { ContactoClave, Evento, Organizador, Sede } from "@/lib/types";
+import { calcularAlerta } from "@/lib/eventos";
+import type {
+  ContactoClave,
+  EventoEnriquecido,
+  Organizador,
+  Sede,
+} from "@/lib/types";
+
+/** Fila cruda de `contactos_clave`, en snake_case como la entrega Postgres. */
+interface FilaContacto {
+  id: string;
+  organizador_id: string;
+  nombre_responsable: string;
+  cargo: string | null;
+  telefono_celular: string | null;
+  email: string | null;
+  red_social_tipo: string | null;
+  red_social_url: string | null;
+  verificado: boolean | null;
+}
+
+function aContacto(fila: FilaContacto): ContactoClave {
+  return {
+    id: fila.id,
+    organizadorId: fila.organizador_id,
+    nombreResponsable: fila.nombre_responsable,
+    cargo: fila.cargo ?? "",
+    telefonoCelular: fila.telefono_celular ?? undefined,
+    email: fila.email ?? undefined,
+    redSocial:
+      fila.red_social_tipo && fila.red_social_url
+        ? {
+            tipo: fila.red_social_tipo as "linkedin" | "instagram",
+            url: fila.red_social_url,
+          }
+        : undefined,
+    verificado: fila.verificado ?? false,
+  };
+}
 
 /**
  * Obtiene todos los eventos de la BD con sus relaciones resueltas.
+ *
+ * Un evento cuya sede u organizador no se pueda resolver se descarta en vez de
+ * emitirse a medias: `EventoEnriquecido` promete ambas entidades, y devolver un
+ * objeto incompleto haría fallar a las tarjetas al leer `evento.sede.ciudad`.
  */
-export async function obtenerEventosDeBD(): Promise<Evento[]> {
-  // 1. Obtener eventos
+export async function obtenerEventosDeBD(): Promise<EventoEnriquecido[]> {
   const { data: eventosData, error: eventoError } = await supabase
     .from("eventos")
     .select(
@@ -18,8 +63,7 @@ export async function obtenerEventosDeBD(): Promise<Evento[]> {
       id, titulo, descripcion, categoria, estado,
       fecha_inicio, fecha_fin, estimado_asistentes,
       sede_id, organizador_id, fuente_id,
-      es_pago, url_oficial, etiquetas, detectado_en,
-      created_at, updated_at
+      es_pago, url_oficial, etiquetas, detectado_en
     `
     )
     .order("fecha_inicio", { ascending: false });
@@ -27,142 +71,126 @@ export async function obtenerEventosDeBD(): Promise<Evento[]> {
   if (eventoError) throw eventoError;
   if (!eventosData || eventosData.length === 0) return [];
 
-  // 2. Obtener todas las sedes en un query
   const sedeIds = [...new Set(eventosData.map((e) => e.sede_id))];
-  const { data: sedesData } = await supabase
-    .from("sedes")
-    .select("*")
-    .in("id", sedeIds);
+  const orgIds = [...new Set(eventosData.map((e) => e.organizador_id))];
+  const eventoIds = eventosData.map((e) => e.id);
 
-  const sedesMap = new Map(
-    (sedesData || []).map((s) => [
+  const [{ data: sedesData }, { data: orgsData }, { data: contactosData }] =
+    await Promise.all([
+      supabase.from("sedes").select("*").in("id", sedeIds),
+      supabase.from("organizadores").select("*").in("id", orgIds),
+      supabase.from("contactos_clave").select("*").in("organizador_id", orgIds),
+    ]);
+
+  const { data: eventoContactosData } = await supabase
+    .from("evento_contactos")
+    .select("evento_id, contacto_id")
+    .in("evento_id", eventoIds);
+
+  const sedesMap = new Map<string, Sede>(
+    (sedesData ?? []).map((s) => [
       s.id,
       {
         id: s.id,
         nombre: s.nombre,
         tipo: s.tipo,
         ciudad: s.ciudad,
-        comuna: s.comuna,
-        region: s.region,
-        direccion: s.direccion,
-        coordenadas: s.lat && s.lng ? { lat: s.lat, lng: s.lng } : undefined,
-        capacidadMaxima: s.capacidad_maxima,
-        salones: undefined,
-        telefonoEventos: s.telefono_eventos,
-        emailEventos: s.email_eventos,
-        sitioWeb: s.sitio_web,
-      } as Sede,
+        comuna: s.comuna ?? s.ciudad,
+        region: s.region ?? "",
+        direccion: s.direccion ?? "",
+        // `coordenadas` es obligatorio en el modelo. El mapper de ingesta aún no
+        // geocodifica, así que (0,0) marca "sin ubicar" y el mapa conceptual de
+        // /sedes las agrupa en el origen en vez de romperse.
+        coordenadas: { lat: s.lat ?? 0, lng: s.lng ?? 0 },
+        capacidadMaxima: s.capacidad_maxima ?? undefined,
+        telefonoEventos: s.telefono_eventos ?? undefined,
+        emailEventos: s.email_eventos ?? undefined,
+        sitioWeb: s.sitio_web ?? undefined,
+      },
     ])
   );
 
-  // 3. Obtener todos los organizadores
-  const orgIds = [...new Set(eventosData.map((e) => e.organizador_id))];
-  const { data: orgsData } = await supabase
-    .from("organizadores")
-    .select("*")
-    .in("id", orgIds);
-
-  const { data: contactosData } = await supabase
-    .from("contactos_clave")
-    .select("*")
-    .in("organizador_id", orgIds);
-
+  const contactosPorId = new Map<string, ContactoClave>();
   const contactosPorOrg = new Map<string, ContactoClave[]>();
-  (contactosData || []).forEach((c) => {
-    if (!contactosPorOrg.has(c.organizador_id)) {
-      contactosPorOrg.set(c.organizador_id, []);
-    }
-    contactosPorOrg.get(c.organizador_id)!.push({
-      id: c.id,
-      nombreResponsable: c.nombre_responsable,
-      cargo: c.cargo,
-      telefonoCelular: c.telefono_celular,
-      email: c.email,
-      redSocial: c.red_social_tipo
-        ? {
-            tipo: c.red_social_tipo as "linkedin" | "instagram",
-            url: c.red_social_url,
-          }
-        : undefined,
-      verificado: c.verificado,
-    });
-  });
 
-  const orgsMap = new Map(
-    (orgsData || []).map((o) => [
+  for (const fila of (contactosData ?? []) as FilaContacto[]) {
+    const contacto = aContacto(fila);
+    contactosPorId.set(contacto.id, contacto);
+    const delOrg = contactosPorOrg.get(contacto.organizadorId) ?? [];
+    delOrg.push(contacto);
+    contactosPorOrg.set(contacto.organizadorId, delOrg);
+  }
+
+  const orgsMap = new Map<string, Organizador>(
+    (orgsData ?? []).map((o) => [
       o.id,
       {
         id: o.id,
         nombre: o.nombre,
-        rubro: o.rubro,
         tipo: o.tipo,
-        sitioWeb: o.sitio_web,
-        notasInternas: o.notas_internas,
-        contactoIds: (contactosPorOrg.get(o.id) || []).map((c) => c.id),
-      } as Organizador,
+        rubro: o.rubro ?? undefined,
+        sitioWeb: o.sitio_web ?? undefined,
+        notasInternas: o.notas_internas ?? undefined,
+        contactoIds: (contactosPorOrg.get(o.id) ?? []).map((c) => c.id),
+      },
     ])
   );
 
-  // 4. Obtener evento_contactos
-  const { data: eventoContactosData } = await supabase
-    .from("evento_contactos")
-    .select("evento_id, contacto_id")
-    .in(
-      "evento_id",
-      eventosData.map((e) => e.id)
-    );
-
   const contactosPorEvento = new Map<string, string[]>();
-  (eventoContactosData || []).forEach((ec) => {
-    if (!contactosPorEvento.has(ec.evento_id)) {
-      contactosPorEvento.set(ec.evento_id, []);
+  for (const ec of eventoContactosData ?? []) {
+    const ids = contactosPorEvento.get(ec.evento_id) ?? [];
+    ids.push(ec.contacto_id);
+    contactosPorEvento.set(ec.evento_id, ids);
+  }
+
+  const enriquecidos: EventoEnriquecido[] = [];
+
+  for (const e of eventosData) {
+    const sede = sedesMap.get(e.sede_id);
+    const organizador = orgsMap.get(e.organizador_id);
+
+    if (!sede || !organizador) {
+      console.warn(
+        `Evento ${e.id} ("${e.titulo}") descartado: falta ${!sede ? "sede" : "organizador"}`
+      );
+      continue;
     }
-    contactosPorEvento.get(ec.evento_id)!.push(ec.contacto_id);
-  });
 
-  // 5. Armar eventos con relaciones resueltas
-  return eventosData.map((e) => {
-    const sede = sedesMap.get(e.sede_id)!;
-    const organizador = orgsMap.get(e.organizador_id)!;
-    const contactoIds = contactosPorEvento.get(e.id) || [];
+    const contactoIds = contactosPorEvento.get(e.id) ?? [];
     const contactos = contactoIds
-      .map((cId) => (contactosData || []).find((c) => c.id === cId))
-      .filter(Boolean)
-      .map((c) => ({
-        id: c!.id,
-        nombreResponsable: c!.nombre_responsable,
-        cargo: c!.cargo,
-        telefonoCelular: c!.telefono_celular,
-        email: c!.email,
-        redSocial: c!.red_social_tipo
-          ? {
-              tipo: c!.red_social_tipo as "linkedin" | "instagram",
-              url: c!.red_social_url,
-            }
-          : undefined,
-        verificado: c!.verificado,
-      })) as ContactoClave[];
+      .map((cId) => contactosPorId.get(cId))
+      .filter((c): c is ContactoClave => c !== undefined);
 
-    return {
+    const evento = {
       id: e.id,
       titulo: e.titulo,
-      descripcion: e.descripcion,
+      descripcion: e.descripcion ?? "",
       categoria: e.categoria,
       estado: e.estado,
       fechaInicio: e.fecha_inicio,
       fechaFin: e.fecha_fin,
-      estimadoAsistentes: e.estimado_asistentes,
+      estimadoAsistentes: e.estimado_asistentes ?? 0,
       sedeId: e.sede_id,
       organizadorId: e.organizador_id,
-      fuenteId: e.fuente_id,
-      esPago: e.es_pago,
-      urlOficial: e.url_oficial,
+      contactoIds,
+      urlOficial: e.url_oficial ?? undefined,
+      esPago: e.es_pago ?? false,
       etiquetas: e.etiquetas ? e.etiquetas.split(",") : [],
+      fuenteId: e.fuente_id ?? "",
       detectadoEn: e.detectado_en,
+    };
+
+    enriquecidos.push({
+      ...evento,
       sede,
       organizador,
-      contactoIds,
       contactos,
-    } as Evento;
-  });
+      // El principal es el primero del organizador, no el primero vinculado al
+      // evento: es el criterio que usa el resto de la app para la tabla densa.
+      contactoPrincipal: (contactosPorOrg.get(organizador.id) ?? [])[0],
+      alerta: calcularAlerta(evento),
+    });
+  }
+
+  return enriquecidos;
 }

@@ -48,6 +48,30 @@ export async function obtenerOCrearSede(sede: Sede): Promise<string> {
   return nuevo.id;
 }
 
+/**
+ * Organizador de respaldo para eventos detectados sin quién los convoca.
+ *
+ * `eventos.organizador_id` es NOT NULL, pero descartar esos eventos perdería
+ * información real: un evento municipal sin productor claro igual sirve para
+ * terreno. Todos comparten esta única fila, así el directorio los agrupa en una
+ * sola entrada que funciona como cola de trabajo —"a estos hay que averiguarles
+ * el organizador"— en vez de dispersarlos en filas huérfanas.
+ *
+ * El nombre dice explícitamente que el dato falta: la UI no debe fingir que hay
+ * un organizador donde solo hay un hueco.
+ */
+export const ORGANIZADOR_SIN_IDENTIFICAR: Organizador = {
+  id: "org-sin-identificar",
+  nombre: "Organizador sin identificar",
+  // `empresa_privada` es el cajón de sastre del modelo; no afirma nada sobre la
+  // naturaleza real de la entidad, que es justamente lo que se desconoce.
+  tipo: "empresa_privada",
+  contactoIds: [],
+  notasInternas:
+    "Fila de respaldo de la ingesta. Agrupa los eventos detectados sin " +
+    "organizador identificable. No es una entidad real.",
+};
+
 /** Obtiene o crea un organizador en la BD. Deduplica por nombre. */
 export async function obtenerOCrearOrganizador(
   organizador: Organizador
@@ -157,14 +181,12 @@ export async function guardarEvento(item: EventoParaGuardar): Promise<string> {
   if (!sede) {
     throw new Error(`"${evento.titulo}": sin sede, no se puede ubicar`);
   }
-  if (!organizador) {
-    // `eventos.organizador_id` es NOT NULL, y un evento sin quién lo convoca no
-    // sirve para prospectar: se descarta con un motivo legible.
-    throw new Error(`"${evento.titulo}": sin organizador identificado`);
-  }
-
   const sedeId = await obtenerOCrearSede(sede);
-  const organizadorId = await obtenerOCrearOrganizador(organizador);
+  // Sin organizador el evento igual se guarda, colgado de la fila de respaldo:
+  // la carencia es información de negocio, no motivo para perder la detección.
+  const organizadorId = await obtenerOCrearOrganizador(
+    organizador ?? ORGANIZADOR_SIN_IDENTIFICAR
+  );
 
   const contactoIds: string[] = [];
   if (contacto) {

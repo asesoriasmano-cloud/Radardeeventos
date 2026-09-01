@@ -1,16 +1,9 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/ingesta/procesar?prioridad=alta&limite=10",
-      "schedule": "0 */2 * * *"
-    },
-    {
-      "path": "/api/ingesta/procesar?prioridad=media&limite=5",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/ingesta/procesar?prioridad=baja&limite=3",
-      "schedule": "0 0 * * 0"
+      "path": "/api/cron/ingesta",
+      "schedule": "0 11 * * *"
     }
   ]
 }

@@ -21,7 +21,11 @@ export async function extraerEventosDelTexto(
 
   try {
     const response = await client.messages.create({
-      model: "claude-opus-5",
+      // Extraer fechas, nombres y teléfonos de un texto y devolverlos en JSON
+      // es trabajo de clasificación, no de razonamiento: Haiku lo resuelve
+      // por una fracción del costo de Opus, y el cuello de botella real es
+      // la calidad del texto que se le manda, no la del modelo.
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 4096,
       messages: [
         {
